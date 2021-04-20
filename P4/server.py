@@ -29,13 +29,6 @@ def process_client(s):
     print("Request line: ", end="")
     termcolor.cprint(req_line, "green")
 
-    # -- Generate the response message
-    # It has the following lines
-    # Status line
-    # header
-    # blank line
-    # Body (content to send)
-
     # This new contents are written in HTML language
     # -- Status line: We respond that everything is ok (200 code)
     status_line = "HTTP/1.1 200 OK\n"
@@ -43,13 +36,9 @@ def process_client(s):
     # -- Add the Content-Type header
     header = "Content-Type: text/html\n"
 
-#    if path_name == "/info/A":
-#        body = read_html_file("A.html")
-
     if path_name == '/':
         body = read_html_file('index.html')
     elif '/info/' in path_name:
-        #where is the letter? string.split('/')[-1]
         try:
             body = read_html_file(path_name.split('/')[-1] + '.html')
         except FileNotFoundError:
@@ -90,7 +79,6 @@ ls.listen()
 
 print("SEQ Server configured!")
 
-# --- MAIN LOOP
 while True:
     print("Waiting for clients....")
     try:
@@ -101,8 +89,6 @@ while True:
         exit()
     else:
 
-        # Service the client
         process_client(cs)
 
-        # -- Close the socket
         cs.close()
