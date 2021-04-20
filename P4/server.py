@@ -88,7 +88,6 @@ while True:
         ls.close()
         exit()
     else:
-
         process_client(cs)
 
         cs.close()
