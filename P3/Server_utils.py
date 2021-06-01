@@ -1,3 +1,4 @@
+# update
 import termcolor
 import colorama
 from Seq1 import Seq
