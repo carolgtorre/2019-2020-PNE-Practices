@@ -22,7 +22,7 @@ DICT_GENES = {
 
 
 # Define the Server's port
-PORT =8080
+PORT =8083
 
 SERVER = 'rest.ensembl.org'
 Parameters = "?content-type=application/json"
@@ -71,6 +71,10 @@ class TestHandler(http.server.BaseHTTPRequestHandler): # this class is inside th
                 context["limit"] = limit
                 for n in range(0, limit):
                     species_list.append(response_dict["species"][n]["common_name"])
+                if "check":
+                    print("The checkbox was checked")
+                else:
+                    print("The checkbox was not checked")
                 context["names"] = species_list
                 contents = su.read_template_html_file("/listSpecies.html").render(context=context)
             elif path_name == "/karyotype":
