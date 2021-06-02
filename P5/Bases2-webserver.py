@@ -3,9 +3,19 @@ import socketserver
 import termcolor
 import pathlib
 import jinja2
+import json
 
 def read_html_file(filename):
     content = pathlib.Path(filename).read_text()
+    return content
+
+def read_json_file():
+    content = {"Name": "Adenine",
+    "Letter": "A",
+    "Link": "https://en.wikipedia.org/wiki/Adenine",
+    "Formula": "C5H5N5"}
+    # content = connection.getcontent()
+    # content = json.loads(content.read().decode())
     return content
 
 PORT = 8080
@@ -25,7 +35,9 @@ class TestHandler(http.server.BaseHTTPRequestHandler):
         if self.path == '/':
             contents = read_html_file('./html/index.html')
         elif self.path == '/info/A':
-            contents = read_html_file('./html/info/A.html')
+            # contents == {'Name': 'Adenine', 'Letter' : 'A' ,'Link': 'https://en.wikipedia.org/wiki/Adenine', 'Formula': 'C5H5N5'}
+            # return contents
+            contents = read_json_file()
         elif self.path == '/info/C':
             contents = read_html_file('./html/info/C.html')
         elif self.path == '/info/G':
@@ -45,11 +57,11 @@ class TestHandler(http.server.BaseHTTPRequestHandler):
 
         # Define the content-type header:
         self.send_header('Content-Type', 'text/html')
-        self.send_header('Content-Length', len(contents.encode()))
+        #       self.send_header('Content-Length', len(contents.encode()))
         # The header is finished
         self.end_headers()
         # Send the response message
-        self.wfile.write(contents.encode())
+        #       self.wfile.write(contents.encode())
         return
 # ------------------------
 # - Server MAIN program
