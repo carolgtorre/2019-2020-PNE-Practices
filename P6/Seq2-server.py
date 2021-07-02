@@ -77,9 +77,9 @@ class TestHandler(http.server.BaseHTTPRequestHandler):
             elif calculation == "Rev":
                 contents = su.rev(sequence)
             else:
-                contents = su.read_template_html_file('./ERROR.html').render()
+                contents = su.read_template_html_file('./Error.html').render()
         else:
-            contents = su.read_template_html_file("./ERROR.html").render()
+            contents = su.read_template_html_file("./Error.html").render()
         self.send_response(200)  # -- Status line: OK!
 
         # Define the content-type header:

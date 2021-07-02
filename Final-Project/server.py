@@ -1,123 +1,168 @@
 import http.server
 import socketserver
 import termcolor
-import colorama
-from Seq1 import Seq
-import Server_utils as su
 from urllib.parse import urlparse, parse_qs
-import http.client
+import server_utils as SU
+import requests
 import json
-DICT_GENES = {
-    'FRAT1': 'ENSG00000165879',
-    'ADA': 'ENSG00000196839',
-    'FXN': 'ENSG00000165060',
-    'RNU6_269P': 'ENSG00000212379',
-    'MIR633': 'ENSG00000207552',
-    'TTTY4C': 'ENSG00000228296',
-    'RBMY2YP': 'ENSG00000227633',
-    'FGFR3': 'ENSG00000068078',
-    'KDR': 'ENSG00000128052',
-    'ANK2': 'ENSG00000145362'
-}
-
 
 # Define the Server's port
-PORT =8083
-
-SERVER = 'rest.ensembl.org'
-Parameters = "?content-type=application/json"
-
+PORT = 8080
 
 # -- This is for preventing the error: "Port already in use"
 socketserver.TCPServer.allow_reuse_address = True
 
 
 # Class with our Handler. It is a called derived from BaseHTTPRequestHandler
-class TestHandler(http.server.BaseHTTPRequestHandler): # this class is inside the HTTP server therefore it inherit the BaseHTTPRequestHandler methods
+# It means that our class inheritates all his methods and properties
+class TestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         """This method is called whenever the client invokes the GET method
         in the HTTP protocol request"""
-        connection = http.client.HTTPConnection(SERVER)
-        # We just print a message
-        print("GET received! Request line:")
 
         # Print the request line
-        termcolor.cprint("  " + self.requestline, 'green')
+        termcolor.cprint(self.requestline, 'green')
+        termcolor.cprint(self.path, 'blue')
 
-        # Print the command received (should be GET)
-        print("  Command: " + self.command)
-
-        # Print the resource requested (the path)
-        termcolor.cprint("  Path: " + self.path, "lightblue")
         o = urlparse(self.path)
         path_name = o.path
         arguments = parse_qs(o.query)
-        print("Resource requested: ", path_name)
-        print("Parameters: ", arguments)
-        context = {}
+        print("Resource requested:", path_name)
+        print("Parameters:", arguments)
+
+        # In this simple server version:
+        # We are NOT processing the client's request
+        # It is a happy server: It always returns a message saying
+        # that everything is ok
+
         try:
             if path_name == "/":
-                contents = su.read_template_html_file("./index.html").render(context=context)
+                contents = SU.read_template_html_file("./html/index.html").render()
+                content_type = "text/html"
+
             elif path_name == "/listSpecies":
-                ENDPOINT = "/info/species"
-                connection.request("GET", ENDPOINT + Parameters)
-                response = connection.getresponse()
-                response_dict = json.loads(response.read().decode())
-                species_list = []
-                amount_species = len(response_dict["species"])
-                context["amount_species"] = amount_species
-                limit = int(arguments["limit"][0])
-                context["limit"] = limit
-                for n in range(0, limit):
-                    species_list.append(response_dict["species"][n]["common_name"])
-                if "check":
-                    print("The checkbox was checked")
+                if "limit" in arguments.keys() and len(arguments) == 1:
+                    limit_species = arguments["limit"][0]
+                    if limit_species.isdigit() and int(limit_species) > 0:
+                        contents = SU.list_species(limit_species, json_param=False)
+                    else:
+                        contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                elif "limit" and "json" in arguments.keys() and arguments["json"][0] == "1" and len(arguments) == 2:
+                    limit_species = arguments["limit"][0]
+                    contents = SU.list_species(limit_species, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
                 else:
-                    print("The checkbox was not checked")
-                context["names"] = species_list
-                contents = su.read_template_html_file("/listSpecies.html").render(context=context)
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
             elif path_name == "/karyotype":
-                ENDPOINT = "info/assembly/"
-                specie = arguments["species"][0]
-                connection.request("GET", ENDPOINT + specie + Parameters)
-                response = connection.getresponse()
-                response_dict = json.loads(response.read().decode())
-                karyotype = response_dict["karyotype"]
-                context["species"] = arguments["species"][0]
-                context["karyotype"] = karyotype
-                contents = su.read_template_html_file("./karyotype.html").render(context=context)
+                if "specie" in arguments.keys() and len(arguments) == 1:
+                    specie = arguments["specie"][0]
+                    contents = SU.information_karyotype(specie, json_param=False)
+                    content_type = "text/html"
+                elif "specie" and "json" in arguments.keys() and arguments["json"][0] == "1" and len(arguments) == 2:
+                    specie = arguments["specie"][0]
+                    contents = SU.information_karyotype(specie, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
+                else:
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
             elif path_name == "/chromosomeLength":
-                ENDPOINT = "info/assembly/"
-                specie = arguments["species"][0]
-                connection.request("GET", ENDPOINT + specie + Parameters)
-                response = connection.getresponse()
-                response_dict = json.loads(response.read().decode())
-                chromosome = arguments["chromosome"][0]
-                for n in range(0, len(response_dict["top_level_region"])):
-                    if chromosome == response_dict["top_level_region"][n]["name"]:
-                        length = response_dict["top_level_region"][n]["length"]
-                context["length"] = length
-                contents = su.read_template_html_file("./chromosomeLength.html").render(context=context)
+                if "specie" and "chromo" in arguments.keys() and len(arguments) == 2:
+                    specie = arguments["specie"][0]
+                    chromosome = arguments["chromo"][0]
+                    contents = SU.chromosome_length(specie, chromosome, json_param=False)
+                    content_type = "text/html"
+                elif "specie" and "chromo" and "json" in arguments.keys() and arguments["json"][0] == "1" \
+                        and len(arguments) == 3:
+                    specie = arguments["specie"][0]
+                    chromosome = arguments["chromo"][0]
+                    contents = SU.chromosome_length(specie, chromosome, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
+                else:
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
+            elif path_name == "/geneSeq":
+                if "gene" in arguments.keys() and len(arguments) == 1:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_seq(gene, json_param=False)
+                    content_type = "text/html"
+                elif "gene" and "json" in arguments.keys() and arguments["json"][0] == "1" and len(arguments) == 2:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_seq(gene, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
+                else:
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
+            elif path_name == "/geneInfo":
+                if "gene" in arguments.keys() and len(arguments) == 1:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_info(gene, json_param=False)
+                    content_type = "text/html"
+                elif "gene" and "json" in arguments.keys() and arguments["json"][0] == "1" and len(arguments) == 2:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_info(gene, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
+                else:
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
+            elif path_name == "/geneCalc":
+                if "gene" in arguments.keys() and len(arguments) == 1:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_calc(gene, json_param=False)
+                    content_type = "text/html"
+                elif "gene" and "json" in arguments.keys() and arguments["json"][0] == "1" and len(arguments) == 2:
+                    gene = arguments["gene"][0]
+                    contents = SU.gene_calc(gene, json_param=True)
+                    contents = json.dumps(contents)
+                    content_type = "application/json"
+                else:
+                    contents = SU.read_template_html_file("./html/Error.html").render()
+                    content_type = "text/html"
+                print(contents)
+
+            else:
+                contents = SU.read_template_html_file("./html/Error.html").render()
+                content_type = "text/html"
+
+        except requests.exceptions.HTTPError:
+            contents = SU.read_template_html_file("./html/Error.html").render()
+            print(contents)
+            content_type = "text/html"
         except KeyError:
-            contents = su.read_template_html_file("./ERROR.html").render()
-        except IndexError:
-            contents = su.read_template_html_file("./ERROR.html").render()
+            contents = SU.read_template_html_file("./html/Error.html").render()
+            print(contents)
+            content_type = "text/html"
+
         # Generating the response message
         self.send_response(200)  # -- Status line: OK!
 
         # Define the content-type header:
-        self.send_header('Content-Type', 'text/html')
-        self.send_header('Content-Length', len(contents.encode()))
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(contents.encode())))
 
         # The header is finished
-        self.end_headers() # we always need to call the end headers method which forces to create an empty line of the HTTP message
+        self.end_headers()
 
         # Send the response message
-        self.wfile.write(contents.encode()) # wfile acts like a socket, its just something that we can write on
+        self.wfile.write(contents.encode())
 
-        # IN this simple server version:
-        # We are NOT processing the client's request
         return
 
 
@@ -125,7 +170,7 @@ class TestHandler(http.server.BaseHTTPRequestHandler): # this class is inside th
 # - Server MAIN program
 # ------------------------
 # -- Set the new handler
-Handler = TestHandler # we create an instance of the child class TestHandler
+Handler = TestHandler
 
 # -- Open the socket server
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
